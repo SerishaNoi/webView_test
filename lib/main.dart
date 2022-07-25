@@ -2,13 +2,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_and_store_deploy/back_event_notifier.dart';
+import 'package:webview_and_store_deploy/pull_to_refresh.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     ChangeNotifierProvider(
       create: (context) => BackEventNotifier(),
@@ -43,8 +44,9 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   late WebViewController _controller;
+  late DragGesturePullToRefresh dragGesturePullToRefresh;
   bool isLoading = true;
   final GlobalKey _globalKey = GlobalKey();
 
@@ -60,9 +62,22 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    dragGesturePullToRefresh = DragGesturePullToRefresh();
+    WidgetsBinding.instance.addObserver(this);
     if (Platform.isAndroid) {
       WebView.platform == SurfaceAndroidWebView();
     }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+  }
+
+  @override
+  void didChangeMetrics() {
+    dragGesturePullToRefresh.setHeight(MediaQuery.of(context).size.height);
   }
 
   @override
@@ -71,52 +86,53 @@ class _MyHomePageState extends State<MyHomePage> {
       onWillPop: () => _onBack(),
       child: Scaffold(
         body: SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height,
-            child: Stack(
-              children: [
-                WebView(
-                  gestureRecognizers: Set()
-                    ..add(Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()
-                      ..onDown = (DragDownDetails dragDownDetails) {
-                        _controller.getScrollY().then((value) {
-                          if (value == 0 && dragDownDetails.globalPosition.direction < 1) {
-                            _controller.reload();
-                          }
-                        });
-                      })),
-                  onWebViewCreated: (controller) {
-                    _controller = controller;
-                  },
-                  initialUrl: 'https://sindbadcity.com/',
-                  javascriptMode: JavascriptMode.unrestricted,
-                  onProgress: (int progress) {
-                    print('WebView is loading (progress : $progress%)');
-                  },
-                  onPageStarted: (String url) {
-                    print('Page started loading: $url');
-                  },
-                  onPageFinished: (String url) {
-                    print('Page finished loading: $url');
-                    startTimer();
-                  },
-                ),
-                isLoading
-                    ? Center(
-                        child: Container(
-                          height: MediaQuery.of(context).size.height,
-                          width: MediaQuery.of(context).size.width,
-                          color: Colors.white,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Image.asset(
-                              'lib/assets/assetGif.gif',
+          child: RefreshIndicator(
+            onRefresh: () => dragGesturePullToRefresh.refresh(),
+            child: Builder(
+              builder: (context) => SizedBox(
+                height: MediaQuery.of(context).size.height,
+                child: Stack(
+                  children: [
+                    WebView(
+                      gestureRecognizers: {Factory(() => dragGesturePullToRefresh)},
+                      gestureNavigationEnabled: true,
+                      onWebViewCreated: (controller) {
+                        _controller = controller;
+                        dragGesturePullToRefresh.setContext(context).setController(_controller);
+                      },
+                      initialUrl: 'https://sindbadcity.com/',
+                      javascriptMode: JavascriptMode.unrestricted,
+                      onProgress: (int progress) {
+                        print('WebView is loading (progress : $progress%)');
+                      },
+                      onPageStarted: (String url) {
+                        dragGesturePullToRefresh.started();
+                        print('Page started loading: $url');
+                      },
+                      onPageFinished: (String url) {
+                        dragGesturePullToRefresh.finished();
+                        print('Page finished loading: $url');
+                        startTimer();
+                      },
+                    ),
+                    isLoading
+                        ? Center(
+                            child: Container(
+                              height: MediaQuery.of(context).size.height,
+                              width: MediaQuery.of(context).size.width,
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Image.asset(
+                                  'lib/assets/assetGif.gif',
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      )
-                    : const SizedBox()
-              ],
+                          )
+                        : const SizedBox()
+                  ],
+                ),
+              ),
             ),
           ),
         ),
