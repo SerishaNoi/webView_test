@@ -2,10 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:webview_and_store_deploy/back_event_notifier.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => BackEventNotifier(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -37,9 +44,10 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late WebViewController _controller;
   bool isLoading = true;
+  final GlobalKey _globalKey = GlobalKey();
 
   void startTimer() {
-    Timer.periodic(const Duration(seconds: 3), (t) {
+    Timer.periodic(const Duration(seconds: 1), (t) {
       setState(() {
         isLoading = false;
       });
@@ -51,62 +59,112 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     if (Platform.isAndroid) {
-      WebView.platform == SurfaceAndroidWebView();
+      WebView.platform == AndroidWebView();
     }
-    // if (Platform.isIOS){
-    //   WebView.platform ==
-    // }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () {
-          return _controller.reload();
-        },
-        child: Stack(
-          children: [
-            WebView(
-              onWebViewCreated: (controller) {
-                _controller = controller;
-              },
-              initialUrl: 'https://sindbadcity.com/',
-              javascriptMode: JavascriptMode.unrestricted,
-              onProgress: (int progress) {
-                print('WebView is loading (progress : $progress%)');
-              },
-              onPageStarted: (String url) {
-                print('Page started loading: $url');
-              },
-              onPageFinished: (String url) {
-                print('Page finished loading: $url');
-                startTimer();
-              },
-            ),
-            isLoading
-                ? Center(
-                    child: Expanded(
-                      child: Container(
-                        height: MediaQuery.of(context).size.height,
-                        width: MediaQuery.of(context).size.width,
-                        color: Colors.white,
-                        child: const Image(
-                          image: AssetImage(
-                            'lib/assets/assetGif.gif',
+    return WillPopScope(
+      onWillPop: () => _onBack(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
+        ),
+        body: RefreshIndicator(
+          key: _globalKey,
+          onRefresh: () {
+            return _controller.reload();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height,
+              child: Stack(
+                children: [
+                  WebView(
+                    onWebViewCreated: (controller) {
+                      _controller = controller;
+                    },
+                    initialUrl: 'https://sindbadcity.com/',
+                    javascriptMode: JavascriptMode.unrestricted,
+                    onProgress: (int progress) {
+                      print('WebView is loading (progress : $progress%)');
+                    },
+                    onPageStarted: (String url) {
+                      print('Page started loading: $url');
+                    },
+                    onPageFinished: (String url) {
+                      print('Page finished loading: $url');
+                      startTimer();
+                    },
+                  ),
+                  isLoading
+                      ? Center(
+                          child: Container(
+                            height: MediaQuery.of(context).size.height,
+                            width: MediaQuery.of(context).size.width,
+                            color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Image.asset(
+                                'lib/assets/assetGif.gif',
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                  )
-                : const SizedBox()
-          ],
+                        )
+                      : const SizedBox()
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  Future<bool> _onBack() async {
+    var value = await _controller.canGoBack();
+
+    if (value) {
+      _controller.goBack();
+
+      return false;
+    } else {
+      late BackEventNotifier notifier;
+      await showDialog(
+        context: _globalKey.currentState!.context,
+        builder: (context) => Consumer(
+          builder: (context, BackEventNotifier event, child) {
+            notifier = event;
+            return AlertDialog(
+              title: const Text('Confirmation ', style: TextStyle(color: Colors.purple)),
+              content: const Text('Do you want exit app ? '),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                    event.add(false);
+                  },
+
+                  child: const Text("No"), // No
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    event.add(true);
+                  },
+                  child: const Text("Yes"), // Yes
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      print("_notifier.isBack ${notifier.isBack}");
+      return notifier.isBack;
+    }
   }
 
   void refreshWebView() {
