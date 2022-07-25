@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.webview_and_store_deploy">
+   <uses-permission android:name="android.permission.INTERNET"/>
    <application
         android:label="SindbadCity"
         android:name="${applicationName}"

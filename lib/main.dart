@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_and_store_deploy/back_event_notifier.dart';
@@ -59,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     if (Platform.isAndroid) {
-      WebView.platform == AndroidWebView();
+      WebView.platform == SurfaceAndroidWebView();
     }
   }
 
@@ -68,60 +70,58 @@ class _MyHomePageState extends State<MyHomePage> {
     return WillPopScope(
       onWillPop: () => _onBack(),
       child: Scaffold(
-        // appBar: AppBar(
-        //   title: Text(widget.title),
-        // ),
         body: SafeArea(
-          child: RefreshIndicator(
-            key: _globalKey,
-            onRefresh: () {
-              return _controller.reload();
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: SizedBox(
-                height: MediaQuery.of(context).size.height,
-                child: Stack(
-                  children: [
-                    WebView(
-                      onWebViewCreated: (controller) {
-                        _controller = controller;
-                      },
-                      initialUrl: 'https://sindbadcity.com/',
-                      javascriptMode: JavascriptMode.unrestricted,
-                      onProgress: (int progress) {
-                        print('WebView is loading (progress : $progress%)');
-                      },
-                      onPageStarted: (String url) {
-                        print('Page started loading: $url');
-                      },
-                      onPageFinished: (String url) {
-                        print('Page finished loading: $url');
-                        startTimer();
-                      },
-                    ),
-                    isLoading
-                        ? Center(
-                            child: Container(
-                              height: MediaQuery.of(context).size.height,
-                              width: MediaQuery.of(context).size.width,
-                              color: Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Image.asset(
-                                  'lib/assets/assetGif.gif',
-                                ),
-                              ),
-                            ),
-                          )
-                        : const SizedBox()
-                  ],
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height,
+            child: Stack(
+              children: [
+                WebView(
+                  gestureRecognizers: Set()
+                    ..add(Factory<VerticalDragGestureRecognizer>(() => VerticalDragGestureRecognizer()
+                      ..onDown = (DragDownDetails dragDownDetails) {
+                        _controller.getScrollY().then((value) {
+                          if (value == 0 && dragDownDetails.globalPosition.direction < 1) {
+                            _controller.reload();
+                          }
+                        });
+                      })),
+                  onWebViewCreated: (controller) {
+                    _controller = controller;
+                  },
+                  initialUrl: 'https://sindbadcity.com/',
+                  javascriptMode: JavascriptMode.unrestricted,
+                  onProgress: (int progress) {
+                    print('WebView is loading (progress : $progress%)');
+                  },
+                  onPageStarted: (String url) {
+                    print('Page started loading: $url');
+                  },
+                  onPageFinished: (String url) {
+                    print('Page finished loading: $url');
+                    startTimer();
+                  },
                 ),
-              ),
+                isLoading
+                    ? Center(
+                        child: Container(
+                          height: MediaQuery.of(context).size.height,
+                          width: MediaQuery.of(context).size.width,
+                          color: Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Image.asset(
+                              'lib/assets/assetGif.gif',
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox()
+              ],
             ),
           ),
         ),
       ),
+      // ),
     );
   }
 
@@ -167,9 +167,5 @@ class _MyHomePageState extends State<MyHomePage> {
       print("_notifier.isBack ${notifier.isBack}");
       return notifier.isBack;
     }
-  }
-
-  void refreshWebView() {
-    _controller.reload();
   }
 }
