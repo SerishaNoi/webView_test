@@ -68,53 +68,55 @@ class _MyHomePageState extends State<MyHomePage> {
     return WillPopScope(
       onWillPop: () => _onBack(),
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-        ),
-        body: RefreshIndicator(
-          key: _globalKey,
-          onRefresh: () {
-            return _controller.reload();
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: SizedBox(
-              height: MediaQuery.of(context).size.height,
-              child: Stack(
-                children: [
-                  WebView(
-                    onWebViewCreated: (controller) {
-                      _controller = controller;
-                    },
-                    initialUrl: 'https://sindbadcity.com/',
-                    javascriptMode: JavascriptMode.unrestricted,
-                    onProgress: (int progress) {
-                      print('WebView is loading (progress : $progress%)');
-                    },
-                    onPageStarted: (String url) {
-                      print('Page started loading: $url');
-                    },
-                    onPageFinished: (String url) {
-                      print('Page finished loading: $url');
-                      startTimer();
-                    },
-                  ),
-                  isLoading
-                      ? Center(
-                          child: Container(
-                            height: MediaQuery.of(context).size.height,
-                            width: MediaQuery.of(context).size.width,
-                            color: Colors.white,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: Image.asset(
-                                'lib/assets/assetGif.gif',
+        // appBar: AppBar(
+        //   title: Text(widget.title),
+        // ),
+        body: SafeArea(
+          child: RefreshIndicator(
+            key: _globalKey,
+            onRefresh: () {
+              return _controller.reload();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height,
+                child: Stack(
+                  children: [
+                    WebView(
+                      onWebViewCreated: (controller) {
+                        _controller = controller;
+                      },
+                      initialUrl: 'https://sindbadcity.com/',
+                      javascriptMode: JavascriptMode.unrestricted,
+                      onProgress: (int progress) {
+                        print('WebView is loading (progress : $progress%)');
+                      },
+                      onPageStarted: (String url) {
+                        print('Page started loading: $url');
+                      },
+                      onPageFinished: (String url) {
+                        print('Page finished loading: $url');
+                        startTimer();
+                      },
+                    ),
+                    isLoading
+                        ? Center(
+                            child: Container(
+                              height: MediaQuery.of(context).size.height,
+                              width: MediaQuery.of(context).size.width,
+                              color: Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Image.asset(
+                                  'lib/assets/assetGif.gif',
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                      : const SizedBox()
-                ],
+                          )
+                        : const SizedBox()
+                  ],
+                ),
               ),
             ),
           ),
